@@ -5,12 +5,7 @@ import { differenceInMinutes, parse, isAfter, isBefore } from 'date-fns';
 export function useNotification() {
     const { preferences, totalToday } = useUser();
 
-    useEffect(() => {
-        // Check permission on mount if enabled
-        if (preferences.notificationsEnabled && Notification.permission === 'default') {
-            Notification.requestPermission();
-        }
-    }, [preferences.notificationsEnabled]);
+
 
     useEffect(() => {
         if (!preferences.notificationsEnabled) return;

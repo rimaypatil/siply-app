@@ -21,8 +21,23 @@ export default function Settings() {
 
     const [msg, setMsg] = useState('');
 
-    const handleChange = (e) => {
+    const handleChange = async (e) => {
         const { name, value, type, checked } = e.target;
+
+        if (name === 'notificationsEnabled' && checked) {
+            if (!("Notification" in window)) {
+                alert("This browser does not support desktop notification");
+                return;
+            }
+            if (Notification.permission !== "granted") {
+                const permission = await Notification.requestPermission();
+                if (permission !== "granted") {
+                    alert("Permission denied. Please enable notifications in your browser settings.");
+                    return;
+                }
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
