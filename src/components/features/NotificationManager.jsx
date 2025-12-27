@@ -96,7 +96,7 @@ export function NotificationManager() {
                     sessionStorage.setItem('lastNotified', now.getTime().toString());
                 }
             }
-        }, 60 * 1000); // Check every minute
+        }, 10 * 1000); // Check every 10 seconds
 
         return () => clearInterval(interval);
     }, [preferences, todayIntake, totalToday]);
