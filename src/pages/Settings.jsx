@@ -91,7 +91,7 @@ export default function Settings() {
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700 ml-1">Reminder Interval (min)</label>
                     <select name="interval" value={formData.interval} onChange={handleChange} className="w-full flex h-12 rounded-xl border border-slate-200 bg-white px-4">
-                        <option value={1}>1 min (Test)</option>
+                        <option value={1}>1 minute</option>
                         <option value={30}>30 mins</option>
                         <option value={45}>45 mins</option>
                         <option value={60}>60 mins</option>
