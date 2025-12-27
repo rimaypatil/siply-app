@@ -80,10 +80,19 @@ export function NotificationManager() {
                 const lastNotifiedTime = lastNotified ? new Date(parseInt(lastNotified)) : null;
 
                 if (!lastNotifiedTime || differenceInMinutes(now, lastNotifiedTime) >= preferences.interval) {
-                    new Notification("Time to drink water MiMi😚💧", {
-                        body: `stay hydrated babes! You need ${preferences.dailyGoal - totalToday}ml more today`,
-                        icon: '/cute-cat-water.png'
-                    });
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.ready.then(registration => {
+                            registration.showNotification("Time to drink water MiMi😚💧", {
+                                body: `stay hydrated babes! You need ${preferences.dailyGoal - totalToday}ml more today`,
+                                icon: '/cute-cat-water.png'
+                            });
+                        });
+                    } else {
+                        new Notification("Time to drink water MiMi😚💧", {
+                            body: `stay hydrated babes! You need ${preferences.dailyGoal - totalToday}ml more today`,
+                            icon: '/cute-cat-water.png'
+                        });
+                    }
                     sessionStorage.setItem('lastNotified', now.getTime().toString());
                 }
             }
