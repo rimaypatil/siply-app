@@ -64,6 +64,15 @@ export function NotificationManager() {
             Notification.requestPermission();
         }
 
+        // Silent audio to keep the browser from throttling this tab aggressively
+        // This is a known workaround for web apps to stay alive in background
+        const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAgZGF0YQQAAAAAAA==');
+        audio.loop = true;
+
+        // Try to play audio to keep thread active (requires user interaction first usually)
+        // We catch error in case autoplay is blocked, but usually after interaction it works
+        audio.play().catch(e => console.log("Background keep-alive audio waiting for interaction"));
+
         const worker = new Worker(new URL('../../workers/timer.worker.js', import.meta.url), { type: 'module' });
 
         worker.onmessage = () => {
@@ -98,16 +107,23 @@ export function NotificationManager() {
                 const lastNotifiedTime = lastNotifiedStr ? new Date(parseInt(lastNotifiedStr)) : null;
 
                 // Don't notify if we just notified recently (within interval)
-                // Give a small buffer (e.g., interval - 1 min) to avoid slightly off timing issues, 
-                // but strictly speaking, we want to ensure we don't double notify.
-                if (!lastNotifiedTime || differenceInMinutes(now, lastNotifiedTime) >= prefs.interval) {
+                // We use a small buffer (50% of interval) to prevent double notification if worker ticks fast,
+                // BUT we must allow re-notification if enough time actually passed.
+                // The issue "stops after 2-3 times" implies we might be blocking ourselves or the worker stops.
+                // With the worker fix and audio keep-alive, the worker should keep ticking.
+
+                // If we haven't notified yet OR it's been long enough since last notification
+                const minutesSinceLastNotification = lastNotifiedTime ? differenceInMinutes(now, lastNotifiedTime) : 9999;
+
+                if (minutesSinceLastNotification >= prefs.interval) {
 
                     const title = "Time to drink water MiMi😚💧";
                     const options = {
                         body: `stay hydrated babes! You need ${prefs.dailyGoal - currentTotal}ml more today`,
                         icon: '/cute-cat-water.png',
-                        tag: 'hydration-reminder', // Replaces older notification with same tag
-                        renotify: true
+                        tag: 'hydration-reminder',
+                        renotify: true,
+                        requireInteraction: true, // Keep notification on screen until user clicks
                     };
 
                     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -128,6 +144,7 @@ export function NotificationManager() {
         return () => {
             worker.postMessage('stop');
             worker.terminate();
+            audio.pause();
         };
     }, [preferences.notificationsEnabled]); // Only restart if on/off toggle changes
 

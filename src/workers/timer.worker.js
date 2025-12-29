@@ -1,25 +1,27 @@
 /* eslint-disable no-restricted-globals */
-// A simple worker to keep the timer running off the main thread
+// A robust worker to keep the timer running off the main thread
+
 // self.onmessage = (e) => {
 //     const { action, interval } = e.data;
 // }
 
-// We'll just run a simple interval that ticks every 10 seconds
-// and lets the main thread decide if it's time to notify.
-// This prevents the main thread from throttling the timer loop excessively.
-
 let timerId = null;
+
+function tick() {
+    self.postMessage('tick');
+    // Re-schedule
+    // in background tabs, even workers can be throttled, but this is better than main thread
+    timerId = setTimeout(tick, 10000); // Check every 10 seconds
+}
 
 self.onmessage = (e) => {
     if (e.data === 'start') {
         if (!timerId) {
-            timerId = setInterval(() => {
-                self.postMessage('tick');
-            }, 10000); // Tick every 10 seconds
+            tick();
         }
     } else if (e.data === 'stop') {
         if (timerId) {
-            clearInterval(timerId);
+            clearTimeout(timerId);
             timerId = null;
         }
     }
