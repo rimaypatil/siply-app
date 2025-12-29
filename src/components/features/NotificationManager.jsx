@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useUser } from '../../context/UserContext';
 import { differenceInMinutes, parse, isAfter, isBefore } from 'date-fns';
 
@@ -49,57 +49,87 @@ export function useNotification() {
 // Improved version below that actually works with the context data
 export function NotificationManager() {
     const { preferences, todayIntake, totalToday } = useUser();
+    const stateRef = useRef({ preferences, todayIntake, totalToday });
+
+    // Keep ref updated so worker callback has latest data without re-binding
+    useEffect(() => {
+        stateRef.current = { preferences, todayIntake, totalToday };
+    }, [preferences, todayIntake, totalToday]);
 
     useEffect(() => {
         if (!preferences.notificationsEnabled) return;
-        if (Notification.permission !== 'granted') return;
-        if (totalToday >= preferences.dailyGoal) return;
 
-        const interval = setInterval(() => {
+        // Request permission if not granted
+        if (Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        const worker = new Worker(new URL('../../workers/timer.worker.js', import.meta.url), { type: 'module' });
+
+        worker.onmessage = () => {
+            const { preferences: prefs, totalToday: currentTotal, todayIntake: logs } = stateRef.current;
+
+            if (Notification.permission !== 'granted') return;
+            if (currentTotal >= prefs.dailyGoal) return;
+
             const now = new Date();
-            const wakeDate = parse(preferences.wakeTime, 'HH:mm', now);
-            const sleepDate = parse(preferences.sleepTime, 'HH:mm', now);
+            const wakeDate = parse(prefs.wakeTime, 'HH:mm', now);
+            const sleepDate = parse(prefs.sleepTime, 'HH:mm', now);
 
-            if (isBefore(now, wakeDate) || isAfter(now, sleepDate)) return;
+            // Handle overnight schedules (e.g. 23:00 to 07:00)
+            const isOvernight = isBefore(sleepDate, wakeDate);
+            const isAwake = isOvernight
+                ? (isAfter(now, wakeDate) || isBefore(now, sleepDate))
+                : (isAfter(now, wakeDate) && isBefore(now, sleepDate));
+
+            if (!isAwake) return;
 
             // Find last drink time
-            const lastLog = todayIntake.length > 0
-                ? todayIntake[todayIntake.length - 1]
+            const lastLog = logs.length > 0
+                ? logs[logs.length - 1]
                 : null;
 
             const lastTime = lastLog ? new Date(lastLog.timestamp) : wakeDate;
-            const diff = differenceInMinutes(now, lastTime);
+            const minutesSinceDrink = differenceInMinutes(now, lastTime);
 
-            if (diff >= preferences.interval) {
-                // Check if we already notified recently? 
-                // We don't want to spam. We need state for "lastNotified".
-                // We'll store lastNotified in sessionStorage to avoid persistence across reload if needed, 
-                // or just rely on the fact that user should drink.
+            if (minutesSinceDrink >= prefs.interval) {
+                // Check last notified time from localStorage to be persistent across reloads
+                const lastNotifiedStr = localStorage.getItem('lastNotified');
+                const lastNotifiedTime = lastNotifiedStr ? new Date(parseInt(lastNotifiedStr)) : null;
 
-                const lastNotified = sessionStorage.getItem('lastNotified');
-                const lastNotifiedTime = lastNotified ? new Date(parseInt(lastNotified)) : null;
+                // Don't notify if we just notified recently (within interval)
+                // Give a small buffer (e.g., interval - 1 min) to avoid slightly off timing issues, 
+                // but strictly speaking, we want to ensure we don't double notify.
+                if (!lastNotifiedTime || differenceInMinutes(now, lastNotifiedTime) >= prefs.interval) {
 
-                if (!lastNotifiedTime || differenceInMinutes(now, lastNotifiedTime) >= preferences.interval) {
-                    if ('serviceWorker' in navigator) {
+                    const title = "Time to drink water MiMi😚💧";
+                    const options = {
+                        body: `stay hydrated babes! You need ${prefs.dailyGoal - currentTotal}ml more today`,
+                        icon: '/cute-cat-water.png',
+                        tag: 'hydration-reminder', // Replaces older notification with same tag
+                        renotify: true
+                    };
+
+                    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
                         navigator.serviceWorker.ready.then(registration => {
-                            registration.showNotification("Time to drink water MiMi😚💧", {
-                                body: `stay hydrated babes! You need ${preferences.dailyGoal - totalToday}ml more today`,
-                                icon: '/cute-cat-water.png'
-                            });
+                            registration.showNotification(title, options);
                         });
                     } else {
-                        new Notification("Time to drink water MiMi😚💧", {
-                            body: `stay hydrated babes! You need ${preferences.dailyGoal - totalToday}ml more today`,
-                            icon: '/cute-cat-water.png'
-                        });
+                        new Notification(title, options);
                     }
-                    sessionStorage.setItem('lastNotified', now.getTime().toString());
+
+                    localStorage.setItem('lastNotified', now.getTime().toString());
                 }
             }
-        }, 10 * 1000); // Check every 10 seconds
+        };
 
-        return () => clearInterval(interval);
-    }, [preferences, todayIntake, totalToday]);
+        worker.postMessage('start');
 
-    return null; // Renderless component
+        return () => {
+            worker.postMessage('stop');
+            worker.terminate();
+        };
+    }, [preferences.notificationsEnabled]); // Only restart if on/off toggle changes
+
+    return null;
 }
