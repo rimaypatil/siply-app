@@ -45,8 +45,12 @@ const User = mongoose.model('User', userSchema);
 // --- Web Push Setup ---
 
 // VAPID Keys (Generated)
-const publicVapidKey = 'BHyMl2hAw8Uap92pvoq78Qgg9130pHpzQGn-vp3ReoWOpb1yb0UqK9_L37x-dCfQVq3wVghOa1ko_c2XrbOD4Qs';
-const privateVapidKey = 'CQNJhRpepaTnQhTDiOh_OGlqrnDpq8wA7mmhIGC3R5c';
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
+
+if (!publicVapidKey || !privateVapidKey) {
+    console.error("VAPID Keys are missing! Check .env file.");
+}
 
 webpush.setVapidDetails(
     'mailto:test@test.com',
