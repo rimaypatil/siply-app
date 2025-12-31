@@ -35,7 +35,8 @@ const userSchema = new mongoose.Schema({
         interval: Number,
         wakeTime: String,
         sleepTime: String,
-        dailyGoal: Number
+        dailyGoal: Number,
+        timezone: String
     },
     lastNotified: { type: Number, default: 0 }
 });
@@ -96,6 +97,8 @@ app.post('/api/unsubscribe', async (req, res) => {
     }
 });
 
+// Test notification endpoint removed
+
 // --- Scheduler ---
 
 // Run every minute
@@ -116,7 +119,17 @@ cron.schedule('* * * * *', async () => {
             // In case preferences are missing
             if (!user.preferences) continue;
 
-            const { interval, wakeTime, sleepTime } = user.preferences;
+            const { interval, wakeTime, sleepTime, timezone } = user.preferences;
+
+            // Get current time in user's timezone
+            const userTimeStr = new Date().toLocaleString("en-US", {
+                timeZone: timezone || 'UTC',
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            const [currentH, currentM] = userTimeStr.split(':').map(Number);
+            const userCurrentMinutes = currentH * 60 + currentM;
 
             // Parse wake/sleep times (assuming HH:mm format)
             const [wakeH, wakeM] = (wakeTime || '08:00').split(':').map(Number);
@@ -125,7 +138,7 @@ cron.schedule('* * * * *', async () => {
             const sleepMinutes = sleepH * 60 + sleepM;
 
             // Check if within active hours
-            if (currentTimeMinutes < wakeMinutes || currentTimeMinutes > sleepMinutes) {
+            if (userCurrentMinutes < wakeMinutes || userCurrentMinutes > sleepMinutes) {
                 continue; // Sleeping
             }
 

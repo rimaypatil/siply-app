@@ -31,36 +31,3 @@ __pycache__/
 
 # Optional: temporary files
 *.log
-# Environment variables
-.env
-.env.local
-.env.production
-.env.development
-
-# Node modules
-node_modules/
-
-# Build output
-dist/
-build/
-
-# Logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-build_log.txt
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Editor config
-.vscode/
-.idea/
-
-# Python cache (you have remove_bg.py)
-__pycache__/
-*.pyc
-
-# Optional: temporary files
-*.log

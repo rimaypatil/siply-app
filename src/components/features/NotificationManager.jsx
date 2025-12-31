@@ -98,7 +98,8 @@ export function NotificationManager() {
                         interval: preferences.interval, // in minutes
                         wakeTime: preferences.wakeTime || '08:00',
                         sleepTime: preferences.sleepTime || '22:00',
-                        dailyGoal: preferences.dailyGoal
+                        dailyGoal: preferences.dailyGoal,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
                     }
                 }),
                 headers: {

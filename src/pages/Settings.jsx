@@ -112,6 +112,8 @@ export default function Settings() {
                     <label htmlFor="notif" className="text-slate-700 font-medium">Enable Notifications</label>
                 </div>
 
+                {/* Test Notification button removed */}
+
                 <Button onClick={handleSave} className="w-full mt-2">Save Changes</Button>
                 {msg && <p className="text-center text-green-600 text-sm animate-pulse">{msg}</p>}
             </Card>
